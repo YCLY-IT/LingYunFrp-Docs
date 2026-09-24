@@ -1,0 +1,36 @@
+{
+  "name": "lingyunfrp-docs-v2",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LingYunFrp 使用文档站点：Vue 3 + Naive UI + Tailwind CSS v4 自研文档框架。",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "@vueuse/core": "^15.0.0",
+    "minisearch": "^7.2.0",
+    "motion-v": "^2.4.4",
+    "naive-ui": "^2.45.3",
+    "vue": "^3.5.43",
+    "vue-router": "^5.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^26.6.2",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "@vue/compiler-sfc": "^3.5.43",
+    "js-yaml": "^5.4.2",
+    "markdown-it": "^15.0.2",
+    "shiki": "^4.4.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1",
+    "vue-tsc": "^3.3.11"
+  }
+}

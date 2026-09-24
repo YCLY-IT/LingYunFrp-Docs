@@ -1,0 +1,4829 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "凌云 FRP 面板后端接口文档",
+    "description": "LingYunFrp 全量 HTTP 接口文档",
+    "version": "1.0.0",
+    "contact": {
+      "name": "LingYunFrp",
+      "url": "https://github.com/YCLY-IT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://www.lyfrp.cn/api",
+      "description": "默认服务器"
+    }
+  ],
+  "tags": [
+    {
+      "name": "公共",
+      "description": "无需登录的公开统计接口"
+    },
+    {
+      "name": "认证",
+      "description": "登录、注册、登出、密码相关"
+    },
+    {
+      "name": "验证码",
+      "description": "邮箱 / 手机验证码下发"
+    },
+    {
+      "name": "用户",
+      "description": "当前登录用户的资料、流量、头像、Token"
+    },
+    {
+      "name": "签到",
+      "description": "每日签到领积分与流量"
+    },
+    {
+      "name": "实名认证",
+      "description": "三要素实名认证"
+    },
+    {
+      "name": "订单与支付",
+      "description": "下单购买、订单状态查询、支付回调"
+    },
+    {
+      "name": "公共信息",
+      "description": "公告、用户组、下载源、软件、产品等公开数据"
+    },
+    {
+      "name": "我的日志",
+      "description": "当前用户的操作日志"
+    },
+    {
+      "name": "隧道",
+      "description": "登录用户的隧道（代理）增删改查与配置"
+    }
+  ],
+  "paths": {
+    "/public/stats": {
+      "get": {
+        "tags": [
+          "公共"
+        ],
+        "summary": "获取首页统计数据",
+        "description": "无需登录，返回全站用户数、节点数、隧道数与总流量。结果带缓存。",
+        "operationId": "getDashboardStats",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/DashboardStats"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "totalUsers": 128,
+                    "totalNodes": 6,
+                    "activeProxies": 42,
+                    "totalProxies": 87,
+                    "totalTraffic": 1024000
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "用户登录",
+        "description": "用户名或邮箱 + 密码登录。限频：同一 IP 每 10 次/分钟（无论成败均计数）。登录失败多次会触发 IP 锁定。受 `allowLogin` 设置控制。",
+        "operationId": "login",
+        "security": [],
+        "parameters": [
+          {
+            "name": "Client",
+            "in": "header",
+            "required": false,
+            "description": "（非必填）客户端标识，如 LingYunFrpClient；用于记录操作日志的客户端类型",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ClientVersion",
+            "in": "header",
+            "required": false,
+            "description": "（非必填）客户端版本号",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "System",
+            "in": "header",
+            "required": false,
+            "description": "（非必填）操作系统",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Arch",
+            "in": "header",
+            "required": false,
+            "description": "（非必填）CPU 架构",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "example": {
+                "username": "lingyun",
+                "password": "123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/LoginData"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "description": "用户名或密码错误 / 账号被封禁 / 登录功能已关闭 / IP 被锁定",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "用户名或密码错误 / 账号被封禁 / 登录功能已关闭 / IP 被锁定",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 3,
+                      "description": "业务状态码：3"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "用户名或密码错误",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "用户名或密码错误",
+                  "data": null
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "用户注册",
+        "description": "需先调用 /codes/register 获取邮箱验证码。限频：1 次/小时（按 IP/用户，成功才计数）。受 `allowRegister` 设置控制。注册成功后默认写入 user 组的流量/隧道配额，并生成 frp 连接 Token。",
+        "operationId": "register",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              },
+              "example": {
+                "username": "lingyun",
+                "password": "123456",
+                "email": "a@b.com",
+                "nickname": "小凌",
+                "code": "123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "注册成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "description": "注册功能已关闭",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "注册功能已关闭",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 3,
+                      "description": "业务状态码：3"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "注册功能已关闭",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "注册功能已关闭",
+                  "data": null
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "退出登录",
+        "description": "将当前 Token 加入黑名单使其立即失效。需要登录。",
+        "operationId": "logout",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "登出成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "description": "登出失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "登出失败",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "登出失败",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "登出失败",
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password/reset": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "忘记密码-重置密码",
+        "description": "通过邮箱验证码重置密码，无需登录。需先调用 /codes/password 获取验证码。",
+        "operationId": "resetPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              },
+              "example": {
+                "email": "a@b.com",
+                "code": "123456",
+                "password": "newpass123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "重置成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "用户不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "用户不存在",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "用户不存在",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "用户不存在",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/auth/password/update": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "修改密码",
+        "description": "需要登录。校验旧密码，新密码需两次输入一致且不能与旧密码相同（长度 6-32，接口内另限制不超过 20 位）。修改成功后当前 Token 会被加入黑名单，需重新登录。限频：3 次/小时。",
+        "operationId": "updatePassword",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePasswordRequest"
+              },
+              "example": {
+                "oldPassword": "123456",
+                "newPassword": "newpass123",
+                "confirmPassword": "newpass123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/codes/register": {
+      "post": {
+        "tags": [
+          "验证码"
+        ],
+        "summary": "发送注册邮箱验证码",
+        "description": "需要极验行为验证参数。限频：1 次/分钟。验证码 6 位，用于 /auth/register。",
+        "operationId": "sendRegisterCode",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CaptchaLotNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaOutput"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaPassToken"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaGenTime"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeEmailRequest"
+              },
+              "example": {
+                "email": "a@b.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "发送成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误或验证码校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "参数错误或验证码校验失败",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "参数错误1",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "参数错误1",
+                  "data": null
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/codes/password": {
+      "post": {
+        "tags": [
+          "验证码"
+        ],
+        "summary": "发送找回密码邮箱验证码",
+        "description": "需要极验行为验证参数。限频：1 次/分钟。验证码 6 位，用于 /auth/password/reset。",
+        "operationId": "sendForgetCode",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CaptchaLotNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaOutput"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaPassToken"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaGenTime"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeEmailRequest"
+              },
+              "example": {
+                "email": "a@b.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "发送成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/codes/realname": {
+      "post": {
+        "tags": [
+          "验证码"
+        ],
+        "summary": "发送实名认证短信验证码",
+        "description": "需要登录 + 极验行为验证参数。限频：1 次/分钟。验证码 6 位，用于 /realname/。",
+        "operationId": "sendRealnameCode",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CaptchaLotNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaOutput"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaPassToken"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaGenTime"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodePhoneRequest"
+              },
+              "example": {
+                "phone": "13800138000"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "发送成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/codes/username": {
+      "post": {
+        "tags": [
+          "验证码"
+        ],
+        "summary": "发送修改用户名邮箱验证码",
+        "description": "需要登录 + 极验行为验证参数。验证码会发送到当前账号绑定的邮箱，无需传参。限频：1 次/分钟。",
+        "operationId": "sendUsernameUpdateCode",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CaptchaLotNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaOutput"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaPassToken"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaGenTime"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "发送成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "获取用户邮箱失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "获取用户邮箱失败",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "获取用户邮箱失败",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "获取用户邮箱失败",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/user/info": {
+      "get": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "获取当前登录用户资料",
+        "description": "返回头像、邮箱、用户组、带宽上限、剩余流量、可建隧道数、签到状态、积分、frp Token 等。结果带缓存。",
+        "operationId": "getUserInfo",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserInfo"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/user/traffic": {
+      "get": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "获取流量概况",
+        "description": "返回总流量配额、今日已用、累计已用（单位 MB）。结果带缓存。",
+        "operationId": "getUserTraffic",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/TrafficData"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/user/traffic/trend": {
+      "get": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "获取流量趋势",
+        "description": "按小时返回最近 N 天的流量曲线，缺失小时补 0。数组长度 = day × 24。",
+        "operationId": "getUserTrafficTrend",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "day",
+            "in": "query",
+            "required": true,
+            "description": "统计天数，必填",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 7
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功，data 为流量点数组",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/TrafficTrendItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": [
+                    {
+                      "date": {
+                        "hour": 0,
+                        "day": "2026-08-29"
+                      },
+                      "inTraffic": 12,
+                      "outTraffic": 34,
+                      "userId": 1
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "缺少 day 参数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "缺少 day 参数",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "请提供day参数",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "请提供day参数",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/user/nickname": {
+      "patch": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "修改昵称",
+        "description": "需要登录。限频：成功请求 5 次/分钟。",
+        "operationId": "updateNickname",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNicknameRequest"
+              },
+              "example": {
+                "nickname": "小凌"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/user/username": {
+      "patch": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "修改用户名",
+        "description": "需要登录。需先调用 /codes/username 获取注册邮箱验证码。",
+        "operationId": "updateUsername",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUsernameRequest"
+              },
+              "example": {
+                "newUsername": "lingyun2",
+                "emailCode": "123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "验证码错误 / 非注册邮箱 / 参数错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "验证码错误 / 非注册邮箱 / 参数错误",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "验证码错误",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "验证码错误",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/user/avatar": {
+      "post": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "上传头像",
+        "description": "需要登录。multipart/form-data 上传，字段名固定为 avatar。限制：仅 image/jpeg、image/png，大小不超过 2MB，服务端会压缩到 256×256 后保存。限频：3 次/小时。",
+        "operationId": "updateAvatar",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "avatar"
+                ],
+                "properties": {
+                  "avatar": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "头像文件"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "上传成功，data 为新的头像 URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": "http://localhost:8081/uploads/1756000000000000000.jpg"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "description": "上传失败：multipart 解析失败 / 缺少 avatar 字段 / 文件类型不支持 / 超出大小限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "上传失败：multipart 解析失败 / 缺少 avatar 字段 / 文件类型不支持 / 超出大小限制",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "文件类型不支持",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "文件类型不支持",
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/avatar/qq": {
+      "post": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "使用 QQ 头像",
+        "description": "需要登录。通过 QQ 号拉取 qlogo 头像。限频：10 次/分钟。",
+        "operationId": "updateAvatarByQQ",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAvatarQQRequest"
+              },
+              "example": {
+                "qq": "10001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "设置成功，data 为头像 URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": "https://q1.qlogo.cn/g?b=qq&nk=10001&s=640"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/user/avatar/cravatar": {
+      "post": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "使用 Cravatar 头像",
+        "description": "需要登录。根据注册邮箱的 MD5 从 cravatar.cn 拉取头像，无需请求体。",
+        "operationId": "updateAvatarByCravatar",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "设置成功，data 为头像 URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": "https://cravatar.cn/avatar/0cc175b9c0f1b6a831c399e269772661?s=640"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/user/token/reset": {
+      "post": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "重置 frp 连接 Token",
+        "description": "需要登录。重新生成 16 位 frp 用户令牌，旧令牌会被加入黑名单。重置后需要更新所有客户端配置。限频：10 次/分钟。",
+        "operationId": "resetUserToken",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "重置成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/sign/": {
+      "post": {
+        "tags": [
+          "签到"
+        ],
+        "summary": "每日签到",
+        "description": "需要登录 + 极验行为验证参数。按后台配置的签到积分/流量区间随机发放，同时累加签到天数。受 `allowSign` 设置控制，每日仅可签到一次。",
+        "operationId": "userSign",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CaptchaLotNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaOutput"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaPassToken"
+          },
+          {
+            "$ref": "#/components/parameters/CaptchaGenTime"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "签到成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/SignResult"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "point": 5,
+                    "traffic": 120
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "今日已签到 / 签到功能未开启 / 参数错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "今日已签到 / 签到功能未开启 / 参数错误",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "今日已签到",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "今日已签到",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/realname/": {
+      "post": {
+        "tags": [
+          "实名认证"
+        ],
+        "summary": "提交实名认证",
+        "description": "需要登录。先调用 /codes/realname 获取短信验证码，再提交姓名 + 手机号 + 身份证号，服务端调用第三方三要素核验。核验通过后姓名、身份证、手机号以 SHA256 存储。限频：1 次/分钟。受 `allowRealname` 设置控制。",
+        "operationId": "userRealname",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RealnameRequest"
+              },
+              "example": {
+                "name": "张三",
+                "phone": "13800138000",
+                "phoneCode": "123456",
+                "IDCard": "110101200001011234"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "认证成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "验证码错误 / 已实名 / 身份证已存在 / 核验失败 / 暂不开放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "验证码错误 / 已实名 / 身份证已存在 / 核验失败 / 暂不开放",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "验证码错误",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "验证码错误",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/orders/": {
+      "post": {
+        "tags": [
+          "订单与支付"
+        ],
+        "summary": "下单购买",
+        "description": "需要登录。isPoint=true 走积分支付（立即扣积分并发货，data 为 null）；isPoint=false 走现金支付（生成支付宝订单，返回二维码与订单号）。限频：8 次/分钟。",
+        "operationId": "userBuy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyRequest"
+              },
+              "example": {
+                "productId": 1,
+                "type": "vip",
+                "amount": 3,
+                "isPoint": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "下单成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/BuyResult"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "qr_code": "https://qr.alipay.com/xxx",
+                    "out_trade_no": "20260829120000000123"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "产品不存在 / 不支持该支付方式 / 积分不足 / 无法降级购买",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "产品不存在 / 不支持该支付方式 / 积分不足 / 无法降级购买",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "购买失败, 该产品不支持积分购买",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "购买失败, 该产品不支持积分购买",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/orders/status/{outTradeNo}": {
+      "get": {
+        "tags": [
+          "订单与支付"
+        ],
+        "summary": "查询订单支付状态",
+        "description": "需要登录。轮询下单返回的 out_trade_no 判断是否已支付。限频：35 次/分钟。",
+        "operationId": "getPayStatus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "outTradeNo",
+            "in": "path",
+            "required": true,
+            "description": "下单返回的本站订单号",
+            "schema": {
+              "type": "string"
+            },
+            "example": "20260829120000000123"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PayStatusResult"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "message": "已支付"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/webhooks/pay": {
+      "post": {
+        "tags": [
+          "订单与支付"
+        ],
+        "summary": "支付平台异步回调",
+        "description": "由支付平台（易支付协议）调用，校验商户号、MD5 签名、交易状态与金额后为用户发货。响应体为纯文本 success / fail，不是统一 ApiResponse。",
+        "operationId": "payNotify",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PayNotifyRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayNotifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "回调处理成功，返回纯文本 success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数缺失",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "fail"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "参数缺失",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "请求参数有误，请检查必填项与类型后重试",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "签名错误 / 金额不匹配 / 订单不存在，返回纯文本 fail",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "fail"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "签名错误 / 金额不匹配 / 订单不存在，返回纯文本 fail",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "服务器内部错误，请稍后重试",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/info/broadcasts": {
+      "get": {
+        "tags": [
+          "公共信息"
+        ],
+        "summary": "获取站点公告列表",
+        "description": "无需登录，返回全部公告。限频：70 次/分钟。",
+        "operationId": "getBroadcasts",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Broadcast"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/info/groups": {
+      "get": {
+        "tags": [
+          "公共信息"
+        ],
+        "summary": "获取用户组（套餐）列表",
+        "description": "无需登录，返回各用户组的流量、隧道数与带宽配额。限频：70 次/分钟。",
+        "operationId": "getGroups",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "查询成功，data 为 { groups: [...] }",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "groups": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/GroupPublic"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/info/downloads/sources": {
+      "get": {
+        "tags": [
+          "公共信息"
+        ],
+        "summary": "获取客户端下载源列表",
+        "description": "无需登录。限频：70 次/分钟。",
+        "operationId": "getDownloadSources",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/DownloadSource"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/info/softwares": {
+      "get": {
+        "tags": [
+          "公共信息"
+        ],
+        "summary": "获取客户端软件列表",
+        "description": "无需登录，返回 { softwares: [...] }。限频：70 次/分钟。",
+        "operationId": "getSoftwares",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "softwares": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/Software"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/info/softwares/versions": {
+      "get": {
+        "tags": [
+          "公共信息"
+        ],
+        "summary": "获取客户端软件版本列表",
+        "description": "无需登录，返回全量版本记录（不过滤系统架构）。限频：70 次/分钟。",
+        "operationId": "getSoftwareVersions",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SoftwareVersion"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/info/products": {
+      "get": {
+        "tags": [
+          "公共信息"
+        ],
+        "summary": "获取商品（套餐）列表",
+        "description": "无需登录，返回 { products: [...] }，含折扣明细。无商品时返回空数组。限频：70 次/分钟。",
+        "operationId": "getProducts",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "products": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/Product"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/info/github/commits": {
+      "get": {
+        "tags": [
+          "公共信息"
+        ],
+        "summary": "获取前端仓库提交记录",
+        "description": "无需登录，透传 GitHub API 的 commits 列表（仓库由配置 frontend_github_url 决定）。限频：70 次/分钟。",
+        "operationId": "getGithubCommits",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "查询成功，data 为 GitHub 原始提交数组",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/logs/operations": {
+      "get": {
+        "tags": [
+          "我的日志"
+        ],
+        "summary": "获取我的操作日志",
+        "description": "需要登录，仅返回当前用户的日志，按操作时间倒序。限频：成功请求 10 次/秒。",
+        "operationId": "getUserOperationLogs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "name": "module",
+            "in": "query",
+            "required": false,
+            "description": "按模块精确筛选，如 隧道管理 / 用户管理",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "按操作状态精确筛选：success / fail",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "success",
+                "fail"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/OperationLogList"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/proxies/": {
+      "get": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "获取我的隧道列表",
+        "description": "需要登录，分页返回当前用户的隧道。限频：成功请求 10 次/秒。",
+        "operationId": "getProxyList",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ProxyListResult"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "创建隧道",
+        "description": "需要登录。会校验节点是否存在/在线/未禁用、用户组是否匹配、是否需实名、隧道数量上限、端口与域名是否被占用等。创建成功返回 data=null。",
+        "operationId": "createProxy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserProxyRequest"
+              },
+              "example": {
+                "nodeId": 1,
+                "proxyName": "web_tunnel",
+                "localIp": "127.0.0.1",
+                "localPort": 8080,
+                "remotePort": 10080,
+                "proxyType": "tcp",
+                "useEncryption": false,
+                "useCompression": false,
+                "ipLimitIn": 0,
+                "ipLimitOut": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "创建成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数或业务校验失败：隧道名称已存在 / 端口被占用 / 域名被占用 / 类型非法 / 配置不合法等",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "参数或业务校验失败：隧道名称已存在 / 端口被占用 / 域名被占用 / 类型非法 / 配置不合法等",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "隧道名称已存在",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "隧道名称已存在",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "节点被禁用 / 未实名 / 用户被封禁 / 超出隧道数量限制 / 节点超载",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "节点被禁用 / 未实名 / 用户被封禁 / 超出隧道数量限制 / 节点超载",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 3,
+                      "description": "业务状态码：3"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "已达到最大隧道数量限制",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "已达到最大隧道数量限制",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "修改隧道",
+        "description": "需要登录。proxyId 必填，其余字段与创建一致；修改成功后会自动通知节点重载该用户的所有在线隧道。",
+        "operationId": "updateProxy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserProxyRequest"
+              },
+              "example": {
+                "proxyId": 12,
+                "nodeId": 1,
+                "proxyName": "web_tunnel",
+                "localIp": "127.0.0.1",
+                "localPort": 8080,
+                "remotePort": 10080,
+                "proxyType": "tcp"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "未提供 proxyId 或校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "未提供 proxyId 或校验失败",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "更新代理时必须提供代理ID",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "更新代理时必须提供代理ID",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "删除隧道",
+        "description": "需要登录。请求体传 proxyId。被封禁的隧道无法删除。",
+        "operationId": "deleteProxy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyDeleteRequest"
+              },
+              "example": {
+                "proxyId": 12
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "删除成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "该隧道已被封禁",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "该隧道已被封禁",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 3,
+                      "description": "业务状态码：3"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "该隧道已被封禁",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "该隧道已被封禁",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/proxies/toggle": {
+      "patch": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "启用 / 停用隧道",
+        "description": "需要登录。isDisabled=true 停用并断开在线连接，false 启用。",
+        "operationId": "toggleProxy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyToggleRequest"
+              },
+              "example": {
+                "proxyId": 12,
+                "isDisabled": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "操作成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/proxies/config": {
+      "get": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "获取隧道的 frpc 配置文件",
+        "description": "需要登录。根据指定隧道生成可直接使用的 frpc 配置文本（已剔除空值字段）。结果带缓存。",
+        "operationId": "getProxyConfig",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proxyId",
+            "in": "query",
+            "required": true,
+            "description": "隧道 ID，必须为大于 0 的整数",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 12
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "配置格式，默认 toml",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ini",
+                "toml",
+                "yml",
+                "json"
+              ],
+              "default": "toml"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "生成成功，data.config 为配置文本",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ProxyConfigResult"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "config": "serverAddr = \"1.2.3.4\"\nserverPort = 7000\nuser = \"abcd1234efgh5678\"\n\n[auth]\nmethod = \"token\"\ntoken = \"node-token\"\n\n[[proxies]]\nname = \"web_tunnel\"\ntype = \"tcp\"\nlocalIP = \"127.0.0.1\"\nlocalPort = 8080\nremotePort = 10080"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "proxyId 非法或 type 不是 ini/toml/yml/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "proxyId 非法或 type 不是 ini/toml/yml/json",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "type 必须是 ini/toml/yml/json 之一",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "type 必须是 ini/toml/yml/json 之一",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/proxies/nodes": {
+      "get": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "获取可选节点列表",
+        "description": "需要登录，返回全部节点及其实时负载状态（loadStatus）。结果带缓存。",
+        "operationId": "getProxyNodes",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功，data 为节点数组",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/NodeUserItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/proxies/free-port": {
+      "post": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "获取节点可用端口",
+        "description": "需要登录。在节点配置的允许端口范围内随机返回一个未被占用的端口。",
+        "operationId": "getFreePort",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FreePortRequest"
+              },
+              "example": {
+                "nodeId": 1,
+                "protocol": "tcp"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "查询成功，data 为可用端口号",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": 13578
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "端口范围配置错误 / 查询可用端口失败 / 该节点没有可用端口",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "端口范围配置错误 / 查询可用端口失败 / 该节点没有可用端口",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "该节点没有可用端口",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "该节点没有可用端口",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/proxies/close/{proxyId}": {
+      "post": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "断开隧道连接",
+        "description": "需要登录。向 frps 管理接口发送断连指令，强制踢掉指定隧道的在线客户端连接（隧道本身不会被删除/停用）。",
+        "operationId": "closeProxyConnection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proxyId",
+            "in": "path",
+            "required": true,
+            "description": "隧道 ID",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 12
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功，data 为 null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "proxyId 必须是大于 0 的整数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "proxyId 必须是大于 0 的整数",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "proxyId 必须是大于0的整数",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "proxyId 必须是大于0的整数",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "隧道可能已关闭或者 ID 不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "隧道可能已关闭或者 ID 不存在",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 1,
+                      "description": "业务状态码：1"
+                    },
+                    "message": {
+                      "type": "string",
+                      "const": "隧道可能已关闭或者ID不存在",
+                      "description": "提示信息"
+                    },
+                    "data": {
+                      "const": null,
+                      "description": "业务数据，无返回值时为 null"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 1,
+                  "message": "隧道可能已关闭或者ID不存在",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/proxies/status": {
+      "get": {
+        "tags": [
+          "隧道"
+        ],
+        "summary": "获取节点运行状态",
+        "description": "需要登录。传 nodeId 时返回该节点最近 N 小时的状态历史；不传 nodeId 时返回全部节点的实时状态汇总。",
+        "operationId": "getProxyStatus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "nodeId",
+            "in": "query",
+            "required": false,
+            "description": "节点 ID；大于 0 时查询该节点的历史，否则返回全节点实时状态",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "description": "历史时长（小时），默认 1，仅在传 nodeId 时生效",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功。全量模式 data 为 { nodes: [...] }；单节点历史模式 data 为状态历史数组",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/NodeStatusResult"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "登录成功后返回的 Authorization 字段值，请求头格式：`Authorization: Bearer <token>`"
+      }
+    },
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "页码，从 1 开始，默认 1",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "example": 1
+      },
+      "PageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "required": false,
+        "description": "每页条数，默认 20，最大 100（超出或小于 1 会被重置为 20）",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "example": 20
+      },
+      "Search": {
+        "name": "search",
+        "in": "query",
+        "required": false,
+        "description": "模糊搜索关键字",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CaptchaLotNumber": {
+        "name": "lotNumber",
+        "in": "query",
+        "required": true,
+        "description": "极验行为验证 lot_number",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CaptchaOutput": {
+        "name": "captchaOutput",
+        "in": "query",
+        "required": true,
+        "description": "极验行为验证 captcha_output",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CaptchaPassToken": {
+        "name": "passToken",
+        "in": "query",
+        "required": true,
+        "description": "极验行为验证 pass_token",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CaptchaGenTime": {
+        "name": "genTime",
+        "in": "query",
+        "required": true,
+        "description": "极验行为验证 gen_time",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "description": "统一响应结构",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "业务状态码：0 成功；1 业务/参数/系统错误；2 未登录；3 非管理员无权限",
+            "example": 0
+          },
+          "message": {
+            "type": "string",
+            "description": "提示信息，成功时固定为 success",
+            "example": "success"
+          },
+          "data": {
+            "nullable": true,
+            "description": "业务数据，无返回值时为 null"
+          }
+        }
+      },
+      "DashboardStats": {
+        "type": "object",
+        "description": "首页统计信息",
+        "properties": {
+          "totalUsers": {
+            "type": "integer",
+            "description": "总用户数",
+            "example": 128
+          },
+          "totalNodes": {
+            "type": "integer",
+            "description": "总节点数",
+            "example": 6
+          },
+          "activeProxies": {
+            "type": "integer",
+            "description": "在线且未禁用未封禁的隧道数",
+            "example": 42
+          },
+          "totalProxies": {
+            "type": "integer",
+            "description": "隧道总数",
+            "example": 87
+          },
+          "totalTraffic": {
+            "type": "integer",
+            "description": "全站累计流量（MB）",
+            "example": 1024000
+          }
+        }
+      },
+      "LoginData": {
+        "type": "object",
+        "description": "登录成功返回的数据",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "用户 ID",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "description": "用户名",
+            "example": "lingyun"
+          },
+          "email": {
+            "type": "string",
+            "description": "邮箱",
+            "example": "a@b.com"
+          },
+          "role": {
+            "type": "string",
+            "nullable": true,
+            "description": "用户组标识（admin / user / 其他套餐组）",
+            "example": "user"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "头像地址",
+            "example": "http://localhost:8081/images/default_avatar.jpg"
+          },
+          "Authorization": {
+            "type": "string",
+            "description": "JWT，请求头使用 `Bearer <该值>`",
+            "example": "eyJhbGciOi..."
+          },
+          "expire": {
+            "type": "string",
+            "description": "Token 过期时间，格式 yyyy-MM-dd HH:mm:ss.SSS",
+            "example": "2026-08-30 12:00:00.000"
+          },
+          "nickname": {
+            "type": "string",
+            "nullable": true,
+            "description": "昵称",
+            "example": "凌云用户"
+          },
+          "ip": {
+            "type": "string",
+            "description": "本次登录 IP",
+            "example": "127.0.0.1"
+          }
+        }
+      },
+      "UserInfo": {
+        "type": "object",
+        "description": "当前登录用户的完整资料",
+        "properties": {
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "头像 URL"
+          },
+          "email": {
+            "type": "string",
+            "description": "邮箱"
+          },
+          "isRealname": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "是否已实名"
+          },
+          "nickname": {
+            "type": "string",
+            "nullable": true,
+            "description": "昵称"
+          },
+          "friendlyGroup": {
+            "type": "string",
+            "description": "用户组展示名，如「免费用户」"
+          },
+          "group": {
+            "type": "string",
+            "nullable": true,
+            "description": "用户组标识"
+          },
+          "status": {
+            "type": "integer",
+            "nullable": true,
+            "description": "账号状态：0 正常，1 封禁，2 流量超标",
+            "example": 0
+          },
+          "outlimit": {
+            "type": "integer",
+            "description": "国内出方向带宽上限（KB/s）"
+          },
+          "inlimit": {
+            "type": "integer",
+            "description": "国内入方向带宽上限（KB/s）"
+          },
+          "noCNOutlimit": {
+            "type": "integer",
+            "description": "海外出方向带宽上限（KB/s）"
+          },
+          "noCNInlimit": {
+            "type": "integer",
+            "description": "海外入方向带宽上限（KB/s）"
+          },
+          "traffic": {
+            "type": "integer",
+            "description": "剩余流量（MB）"
+          },
+          "maxProxies": {
+            "type": "integer",
+            "description": "可创建隧道总数"
+          },
+          "username": {
+            "type": "string",
+            "description": "用户名"
+          },
+          "remainder": {
+            "type": "integer",
+            "nullable": true,
+            "description": "剩余实名认证次数"
+          },
+          "sign": {
+            "type": "boolean",
+            "description": "今日是否已签到"
+          },
+          "signRemainder": {
+            "type": "integer",
+            "description": "累计签到天数"
+          },
+          "point": {
+            "type": "integer",
+            "description": "累计积分"
+          },
+          "regTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "注册时间"
+          },
+          "usedProxies": {
+            "type": "integer",
+            "description": "已创建的隧道数量"
+          },
+          "token": {
+            "type": "string",
+            "description": "frp 连接用的 16 位用户令牌"
+          },
+          "birthday": {
+            "type": "string",
+            "description": "由身份证号推导的生日 yyyy-MM-dd，未实名时为空串",
+            "example": "2000-01-01"
+          }
+        }
+      },
+      "TrafficData": {
+        "type": "object",
+        "description": "用户流量概况（单位 MB）",
+        "properties": {
+          "allTraffic": {
+            "type": "integer",
+            "description": "总流量配额"
+          },
+          "todayUsedTraffic": {
+            "type": "integer",
+            "description": "今日已用流量"
+          },
+          "allUsedTraffic": {
+            "type": "integer",
+            "description": "累计已用流量"
+          },
+          "data": {
+            "type": "object",
+            "description": "预留字段，当前为空对象"
+          }
+        }
+      },
+      "TrafficTrendItem": {
+        "type": "object",
+        "description": "流量趋势点（按小时）",
+        "properties": {
+          "date": {
+            "type": "object",
+            "properties": {
+              "hour": {
+                "type": "integer",
+                "description": "小时 0-23"
+              },
+              "day": {
+                "type": "string",
+                "description": "日期 yyyy-MM-dd"
+              }
+            }
+          },
+          "inTraffic": {
+            "type": "integer",
+            "description": "入站流量（MB）"
+          },
+          "outTraffic": {
+            "type": "integer",
+            "description": "出站流量（MB）"
+          },
+          "userId": {
+            "type": "integer",
+            "description": "用户 ID"
+          }
+        }
+      },
+      "SignResult": {
+        "type": "object",
+        "description": "签到结果",
+        "properties": {
+          "point": {
+            "type": "integer",
+            "description": "本次获得的积分"
+          },
+          "traffic": {
+            "type": "integer",
+            "description": "本次获得的流量（MB）"
+          }
+        }
+      },
+      "BuyResult": {
+        "type": "object",
+        "description": "下单结果。余额/支付宝支付返回支付二维码与订单号；积分支付成功时 data 为 null",
+        "nullable": true,
+        "properties": {
+          "qr_code": {
+            "type": "string",
+            "description": "支付二维码链接（支付宝）"
+          },
+          "out_trade_no": {
+            "type": "string",
+            "description": "本站订单号"
+          }
+        }
+      },
+      "PayStatusResult": {
+        "type": "object",
+        "description": "订单支付状态",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "已支付 / 未支付",
+            "example": "已支付"
+          }
+        }
+      },
+      "Broadcast": {
+        "type": "object",
+        "description": "站点公告",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "info / warning / danger",
+            "example": "info"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GroupPublic": {
+        "type": "object",
+        "description": "公开的用户组信息（带宽单位为 KB/s，由后台值 ×128 换算前展示）",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "friendlyName": {
+            "type": "string",
+            "description": "展示名"
+          },
+          "name": {
+            "type": "string",
+            "description": "组标识（role）"
+          },
+          "traffic": {
+            "type": "integer",
+            "description": "流量配额（MB）"
+          },
+          "proxies": {
+            "type": "integer",
+            "description": "可创建隧道数"
+          },
+          "out_limit": {
+            "type": "integer",
+            "description": "国内出向带宽"
+          },
+          "in_limit": {
+            "type": "integer",
+            "description": "国内入向带宽"
+          },
+          "no_cn_out_limit": {
+            "type": "integer",
+            "description": "海外出向带宽"
+          },
+          "no_cn_in_limit": {
+            "type": "integer",
+            "description": "海外入向带宽"
+          }
+        }
+      },
+      "DownloadSource": {
+        "type": "object",
+        "description": "客户端下载源",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Software": {
+        "type": "object",
+        "description": "客户端软件",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "description": "软件名称"
+          },
+          "code": {
+            "type": "string",
+            "description": "软件代号，客户端上报用"
+          },
+          "description": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "integer",
+            "description": "所属下载源 ID"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SoftwareVersion": {
+        "type": "object",
+        "description": "客户端软件版本",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "software_id": {
+            "type": "integer"
+          },
+          "version": {
+            "type": "string",
+            "example": "1.2.3"
+          },
+          "download_url": {
+            "type": "string"
+          },
+          "force_update": {
+            "type": "boolean",
+            "description": "是否强制更新"
+          },
+          "os": {
+            "type": "string",
+            "example": "windows"
+          },
+          "arch": {
+            "type": "string",
+            "example": "amd64"
+          },
+          "size": {
+            "type": "integer",
+            "description": "文件大小（字节）"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "description": "商品信息",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "desc": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "format": "double",
+            "description": "现金单价（元 / 月）"
+          },
+          "point_price": {
+            "type": "number",
+            "format": "double",
+            "description": "积分单价"
+          },
+          "pay_method": {
+            "type": "string",
+            "description": "支持的支付方式，分号分隔：money;points",
+            "example": "money;points"
+          },
+          "is_permanent": {
+            "type": "boolean",
+            "description": "是否永久有效"
+          },
+          "type": {
+            "type": "string",
+            "description": "商品类型：用户组标识，或 proxies / traffic / realname"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "discount_info": {
+            "$ref": "#/components/schemas/ProductDiscountInfo"
+          }
+        }
+      },
+      "ProductDiscountInfo": {
+        "type": "object",
+        "description": "折扣信息",
+        "properties": {
+          "has_discount": {
+            "type": "boolean"
+          },
+          "base_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "point_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "rules": {
+            "type": "object",
+            "description": "原始折扣规则，key 为购买月数，value 为折扣率（0.8 表示 8 折）",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "details": {
+            "type": "array",
+            "description": "按 1/3/6/12/24 个月预计算的折扣明细",
+            "items": {
+              "$ref": "#/components/schemas/DiscountDetail"
+            }
+          }
+        }
+      },
+      "DiscountDetail": {
+        "type": "object",
+        "properties": {
+          "months": {
+            "type": "integer",
+            "description": "购买月数"
+          },
+          "total_price": {
+            "type": "number",
+            "format": "double",
+            "description": "折后总价"
+          },
+          "discount_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "折扣率"
+          },
+          "saved_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "节省金额"
+          },
+          "original_price": {
+            "type": "number",
+            "format": "double",
+            "description": "原价"
+          },
+          "total_points": {
+            "type": "integer",
+            "description": "折后积分（仅当积分价大于 0 时返回）"
+          },
+          "saved_points": {
+            "type": "integer",
+            "description": "节省积分"
+          },
+          "original_points": {
+            "type": "integer",
+            "description": "原积分"
+          }
+        }
+      },
+      "OperationLog": {
+        "type": "object",
+        "description": "操作日志",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "user_name": {
+            "type": "string",
+            "description": "操作人用户名，匿名/已删除时为「匿名」或「NULL」"
+          },
+          "operation_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "operation_ip": {
+            "type": "string"
+          },
+          "operation_type": {
+            "type": "string",
+            "description": "操作类型，如 创建隧道 / 修改密码"
+          },
+          "operation_status": {
+            "type": "string",
+            "description": "操作状态：success / fail"
+          },
+          "submit_content": {
+            "description": "提交内容快照（JSON 字符串）"
+          },
+          "before_status": {
+            "nullable": true,
+            "description": "变更前状态（JSON）"
+          },
+          "after_status": {
+            "nullable": true,
+            "description": "变更后状态（JSON）"
+          },
+          "operation_module": {
+            "type": "string",
+            "description": "所属模块，如 隧道管理 / 用户管理"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true,
+            "description": "备注信息"
+          },
+          "operation_duration": {
+            "type": "integer",
+            "description": "耗时"
+          },
+          "request_url": {
+            "type": "string"
+          },
+          "request_method": {
+            "type": "string"
+          },
+          "client_type": {
+            "type": "string",
+            "description": "client / pc / mobile / unknown"
+          }
+        }
+      },
+      "OperationLogList": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperationLog"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        }
+      },
+      "ProxyListItem": {
+        "type": "object",
+        "description": "隧道列表项",
+        "properties": {
+          "nodeId": {
+            "type": "integer",
+            "nullable": true,
+            "description": "所属节点 ID"
+          },
+          "proxyId": {
+            "type": "integer",
+            "description": "隧道 ID"
+          },
+          "proxyName": {
+            "type": "string",
+            "description": "隧道名称"
+          },
+          "username": {
+            "type": "string",
+            "description": "所属用户"
+          },
+          "localIp": {
+            "type": "string",
+            "nullable": true,
+            "description": "本地 IP"
+          },
+          "remoteIp": {
+            "type": "string",
+            "nullable": true,
+            "description": "节点公网 IP"
+          },
+          "localPort": {
+            "type": "integer",
+            "nullable": true
+          },
+          "remotePort": {
+            "type": "integer",
+            "nullable": true,
+            "description": "远程端口"
+          },
+          "proxyType": {
+            "type": "string",
+            "description": "tcp / udp / http / https / stcp / xtcp"
+          },
+          "useEncryption": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "useCompression": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "domain": {
+            "type": "string",
+            "nullable": true,
+            "description": "域名（http/https 类型）"
+          },
+          "proxyProtocolVersion": {
+            "type": "string",
+            "nullable": true,
+            "description": "v1 / v2"
+          },
+          "sk": {
+            "type": "string",
+            "nullable": true,
+            "description": "访问密码（stcp/xtcp）"
+          },
+          "isBanned": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "是否被管理员封禁"
+          },
+          "isDisabled": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "是否被停用"
+          },
+          "isOnline": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "是否在线"
+          },
+          "ipLimitIn": {
+            "type": "integer",
+            "nullable": true,
+            "description": "入向限速（KB/s）"
+          },
+          "ipLimitOut": {
+            "type": "integer",
+            "nullable": true,
+            "description": "出向限速（KB/s）"
+          }
+        }
+      },
+      "ProxyListResult": {
+        "type": "object",
+        "properties": {
+          "proxies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProxyListItem"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        }
+      },
+      "NodeUserItem": {
+        "type": "object",
+        "description": "用户可选的节点信息",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nodeId": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "token": {
+            "type": "string",
+            "nullable": true,
+            "description": "节点 token"
+          },
+          "servicePort": {
+            "type": "integer",
+            "description": "frps 服务端口"
+          },
+          "allowGroup": {
+            "type": "string",
+            "nullable": true,
+            "description": "允许使用的用户组"
+          },
+          "allowPort": {
+            "type": "string",
+            "nullable": true,
+            "description": "允许端口范围，如 10000-20000"
+          },
+          "allowType": {
+            "type": "string",
+            "nullable": true,
+            "description": "允许的隧道类型"
+          },
+          "status": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "是否在线"
+          },
+          "isDisabled": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "是否被管理员禁用"
+          },
+          "needRealname": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "是否需要实名"
+          },
+          "bandWidth": {
+            "type": "integer",
+            "nullable": true,
+            "description": "节点带宽（Mbps）"
+          },
+          "location": {
+            "type": "string",
+            "nullable": true,
+            "description": "cn / cn-out / out"
+          },
+          "loadStatus": {
+            "type": "string",
+            "description": "负载状态：low / normal / high / overload / offline / disabled / unknown"
+          }
+        }
+      },
+      "NodeStatusItem": {
+        "type": "object",
+        "description": "节点实时状态",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "node_name": {
+            "type": "string"
+          },
+          "isOnline": {
+            "type": "boolean"
+          },
+          "client_counts": {
+            "type": "integer",
+            "description": "在线客户端数"
+          },
+          "tunnel_counts": {
+            "type": "integer",
+            "description": "隧道总数"
+          },
+          "total_traffic_in": {
+            "type": "integer",
+            "description": "累计入站流量（MB）"
+          },
+          "total_traffic_out": {
+            "type": "integer",
+            "description": "累计出站流量（MB）"
+          },
+          "today_in_traffic": {
+            "type": "integer"
+          },
+          "today_out_traffic": {
+            "type": "integer"
+          },
+          "cpu_model": {
+            "type": "string"
+          },
+          "cpu_cores": {
+            "type": "integer"
+          },
+          "total_memory": {
+            "type": "number",
+            "format": "double"
+          },
+          "used_memory": {
+            "type": "number",
+            "format": "double"
+          },
+          "free_memory": {
+            "type": "number",
+            "format": "double"
+          },
+          "cpu_usage": {
+            "type": "number",
+            "format": "double",
+            "description": "CPU 使用率百分比"
+          },
+          "cur_conns": {
+            "type": "integer",
+            "description": "当前连接数"
+          },
+          "cur_rate_out_kb": {
+            "type": "number",
+            "format": "double"
+          },
+          "cur_rate_in_kb": {
+            "type": "number",
+            "format": "double"
+          },
+          "proxy_type_count": {
+            "type": "object",
+            "description": "各类型隧道数量统计"
+          }
+        }
+      },
+      "NodeStatusResult": {
+        "type": "object",
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeStatusItem"
+            }
+          }
+        }
+      },
+      "ProxyConfigResult": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "string",
+            "description": "生成的 frpc 配置文件内容（已剔除空值字段）"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "用户名或邮箱（含 @ 且符合邮箱格式时按邮箱查）",
+            "example": "lingyun"
+          },
+          "password": {
+            "type": "string",
+            "example": "123456"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password",
+          "email",
+          "code"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "3-20 位，不能包含 @ 等特殊字符",
+            "example": "lingyun"
+          },
+          "password": {
+            "type": "string",
+            "description": "至少 8 位，无上限限制",
+            "example": "12345678"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "a@b.com"
+          },
+          "nickname": {
+            "type": "string",
+            "description": "可选，最长 20，留空自动填充为 用户_用户名"
+          },
+          "code": {
+            "type": "string",
+            "description": "6 位邮箱验证码",
+            "example": "123456"
+          }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "code",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "code": {
+            "type": "string",
+            "description": "6 位邮箱验证码"
+          },
+          "password": {
+            "type": "string",
+            "description": "新密码，至少 8 位，无上限限制"
+          }
+        }
+      },
+      "UpdatePasswordRequest": {
+        "type": "object",
+        "required": [
+          "oldPassword",
+          "newPassword",
+          "confirmPassword"
+        ],
+        "properties": {
+          "oldPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string",
+            "description": "至少 8 位，无上限限制，不能与旧密码相同"
+          },
+          "confirmPassword": {
+            "type": "string",
+            "description": "必须与 newPassword 一致"
+          }
+        }
+      },
+      "CodeEmailRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "a@b.com"
+          }
+        }
+      },
+      "CodePhoneRequest": {
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "properties": {
+          "phone": {
+            "type": "string",
+            "example": "13800138000"
+          }
+        }
+      },
+      "UpdateNicknameRequest": {
+        "type": "object",
+        "required": [
+          "nickname"
+        ],
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "maxLength": 20
+          }
+        }
+      },
+      "UpdateUsernameRequest": {
+        "type": "object",
+        "required": [
+          "newUsername",
+          "emailCode"
+        ],
+        "properties": {
+          "newUsername": {
+            "type": "string",
+            "description": "3-20 位"
+          },
+          "emailCode": {
+            "type": "string",
+            "description": "6 位邮箱验证码，由 /codes/username 下发到注册邮箱"
+          }
+        }
+      },
+      "UpdateAvatarQQRequest": {
+        "type": "object",
+        "required": [
+          "qq"
+        ],
+        "properties": {
+          "qq": {
+            "type": "string",
+            "description": "纯数字 QQ 号",
+            "example": "10001"
+          }
+        }
+      },
+      "RealnameRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "phone",
+          "phoneCode",
+          "IDCard"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "真实姓名"
+          },
+          "phone": {
+            "type": "string",
+            "description": "手机号"
+          },
+          "phoneCode": {
+            "type": "string",
+            "description": "6 位短信验证码"
+          },
+          "IDCard": {
+            "type": "string",
+            "description": "18 位身份证号"
+          }
+        }
+      },
+      "BuyRequest": {
+        "type": "object",
+        "required": [
+          "productId",
+          "type",
+          "amount"
+        ],
+        "properties": {
+          "productId": {
+            "type": "integer",
+            "description": "商品 ID，取自 /info/products"
+          },
+          "type": {
+            "type": "string",
+            "description": "商品类型：用户组标识，或 proxies / traffic / realname"
+          },
+          "amount": {
+            "type": "integer",
+            "description": "购买数量（月数 / 条数 / GB 数）"
+          },
+          "isPoint": {
+            "type": "boolean",
+            "description": "是否使用积分支付，默认 false 走余额/支付宝"
+          }
+        }
+      },
+      "PayNotifyRequest": {
+        "type": "object",
+        "required": [
+          "pid",
+          "out_trade_no",
+          "name",
+          "trade_no",
+          "trade_status",
+          "sign",
+          "sign_type",
+          "money"
+        ],
+        "properties": {
+          "pid": {
+            "type": "integer",
+            "description": "支付平台商户 ID"
+          },
+          "out_trade_no": {
+            "type": "string",
+            "description": "本站订单号"
+          },
+          "name": {
+            "type": "string",
+            "description": "商品名称"
+          },
+          "trade_no": {
+            "type": "string",
+            "description": "支付平台流水号"
+          },
+          "trade_status": {
+            "type": "string",
+            "description": "支付状态，成功为 TRADE_SUCCESS"
+          },
+          "sign": {
+            "type": "string",
+            "description": "MD5 签名"
+          },
+          "sign_type": {
+            "type": "string",
+            "description": "签名类型，固定 MD5"
+          },
+          "money": {
+            "type": "number",
+            "format": "double",
+            "description": "支付金额，需与订单金额一致（误差 ≤0.01）"
+          }
+        }
+      },
+      "UserProxyRequest": {
+        "type": "object",
+        "required": [
+          "nodeId",
+          "proxyName",
+          "localIp",
+          "localPort",
+          "proxyType"
+        ],
+        "properties": {
+          "proxyId": {
+            "type": "integer",
+            "description": "隧道 ID，仅更新时必填"
+          },
+          "nodeId": {
+            "type": "integer",
+            "description": "节点 ID"
+          },
+          "proxyName": {
+            "type": "string",
+            "description": "隧道名称，英文数字下划线"
+          },
+          "localIp": {
+            "type": "string",
+            "description": "本地 IP，如 127.0.0.1"
+          },
+          "localPort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "remotePort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "远程端口，tcp/udp 必填，可用 /proxies/free-port 获取"
+          },
+          "domain": {
+            "type": "string",
+            "description": "域名，http/https 必填"
+          },
+          "proxyType": {
+            "type": "string",
+            "enum": [
+              "tcp",
+              "udp",
+              "http",
+              "https",
+              "stcp",
+              "xtcp"
+            ]
+          },
+          "accessKey": {
+            "type": "string",
+            "description": "访问密码，stcp/xtcp 使用，5-32 位"
+          },
+          "proxyProtocolVersion": {
+            "type": "string",
+            "description": "v1 / v2，传入的空格会被自动剔除"
+          },
+          "useEncryption": {
+            "type": "boolean"
+          },
+          "useCompression": {
+            "type": "boolean"
+          },
+          "ipLimitIn": {
+            "type": "integer",
+            "description": "入向限速（KB/s），0 表示不限"
+          },
+          "ipLimitOut": {
+            "type": "integer",
+            "description": "出向限速（KB/s），0 表示不限"
+          }
+        }
+      },
+      "ProxyDeleteRequest": {
+        "type": "object",
+        "required": [
+          "proxyId"
+        ],
+        "properties": {
+          "proxyId": {
+            "type": "integer",
+            "description": "待删除的隧道 ID"
+          }
+        }
+      },
+      "ProxyToggleRequest": {
+        "type": "object",
+        "required": [
+          "proxyId"
+        ],
+        "properties": {
+          "proxyId": {
+            "type": "integer"
+          },
+          "isDisabled": {
+            "type": "boolean",
+            "description": "true 停用（同时断开在线连接），false 启用"
+          }
+        }
+      },
+      "FreePortRequest": {
+        "type": "object",
+        "required": [
+          "nodeId",
+          "protocol"
+        ],
+        "properties": {
+          "nodeId": {
+            "type": "integer"
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "tcp",
+              "udp"
+            ]
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "未登录或 Token 失效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "未登录或 Token 失效",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "const": 2,
+                  "description": "业务状态码：2"
+                },
+                "message": {
+                  "type": "string",
+                  "const": "未登录或登录已失效，请重新获取凭证",
+                  "description": "提示信息"
+                },
+                "data": {
+                  "const": null,
+                  "description": "业务数据，无返回值时为 null"
+                }
+              }
+            },
+            "example": {
+              "code": 2,
+              "message": "未登录或登录已失效，请重新获取凭证",
+              "data": null
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "无管理员权限",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "无管理员权限",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "const": 3,
+                  "description": "业务状态码：3"
+                },
+                "message": {
+                  "type": "string",
+                  "const": "权限不足，当前账号无法执行该操作",
+                  "description": "提示信息"
+                },
+                "data": {
+                  "const": null,
+                  "description": "业务数据，无返回值时为 null"
+                }
+              }
+            },
+            "example": {
+              "code": 3,
+              "message": "权限不足，当前账号无法执行该操作",
+              "data": null
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "参数错误或业务校验未通过",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "参数错误或业务校验未通过",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "const": 1,
+                  "description": "业务状态码：1"
+                },
+                "message": {
+                  "type": "string",
+                  "const": "请求参数有误，请检查必填项与类型后重试",
+                  "description": "提示信息"
+                },
+                "data": {
+                  "const": null,
+                  "description": "业务数据，无返回值时为 null"
+                }
+              }
+            },
+            "example": {
+              "code": 1,
+              "message": "请求参数有误，请检查必填项与类型后重试",
+              "data": null
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "资源不存在",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "const": 1,
+                  "description": "业务状态码：1"
+                },
+                "message": {
+                  "type": "string",
+                  "const": "请求的资源不存在或不属于当前账号",
+                  "description": "提示信息"
+                },
+                "data": {
+                  "const": null,
+                  "description": "业务数据，无返回值时为 null"
+                }
+              }
+            },
+            "example": {
+              "code": 1,
+              "message": "请求的资源不存在或不属于当前账号",
+              "data": null
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "触发限频",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "触发限频",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "const": 1,
+                  "description": "业务状态码：1"
+                },
+                "message": {
+                  "type": "string",
+                  "const": "请求过于频繁，请稍后再试",
+                  "description": "提示信息"
+                },
+                "data": {
+                  "const": null,
+                  "description": "业务数据，无返回值时为 null"
+                }
+              }
+            },
+            "example": {
+              "code": 1,
+              "message": "请求过于频繁，请稍后再试",
+              "data": null
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "服务内部错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "服务内部错误",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "const": 1,
+                  "description": "业务状态码：1"
+                },
+                "message": {
+                  "type": "string",
+                  "const": "服务器内部错误，请稍后重试",
+                  "description": "提示信息"
+                },
+                "data": {
+                  "const": null,
+                  "description": "业务数据，无返回值时为 null"
+                }
+              }
+            },
+            "example": {
+              "code": 1,
+              "message": "服务器内部错误，请稍后重试",
+              "data": null
+            }
+          }
+        }
+      }
+    }
+  }
+}
