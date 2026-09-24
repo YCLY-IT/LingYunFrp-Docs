@@ -31,17 +31,11 @@ export const site = {
   repo: 'https://github.com/YCLY-IT/LingYunFrp-Docs',
   editLinkPattern: 'https://github.com/YCLY-IT/LingYunFrp-Docs/edit/main/:path',
   footer: {
-    message: '基于 Vue 3 · Naive UI · Tailwind CSS v4 自研文档框架构建，内容遵循 MIT 协议发布。',
+    message: '基于 Vue 3 · Naive UI · Tailwind CSS v4 文档框架构建，内容遵循 MIT 协议发布。',
     copyright: 'Copyright © 2026-present LingYunFrp · 凌云 FRP',
   },
   statsEndpoint: '/public/stats',
 }
-
-export const nav: NavItem[] = [
-  { text: '参考文档', link: '/docs/', match: /^\/docs\// },
-  { text: 'API 文档', link: '/develop/', match: /^\/develop\// },
-  { text: '条款与服务', link: '/terms/', match: /^\/terms\// },
-]
 
 const apiGroups: SidebarGroup[] = api.tags
   .filter((tag) => tag.count > 0)
@@ -111,6 +105,18 @@ export const sidebars: SidebarConfig[] = [
       },
     ],
   },
+]
+
+export function sectionEntry(prefix: string): string {
+  const section = sidebars.find((item) => item.prefix === prefix)
+  const link = section?.groups[0]?.items[0]?.link
+  return link ? link.split('#')[0] : prefix
+}
+
+export const nav: NavItem[] = [
+  { text: '参考文档', link: sectionEntry('/docs/'), match: /^\/docs\// },
+  { text: 'API 文档', link: sectionEntry('/develop/'), match: /^\/develop\// },
+  { text: '条款与服务', link: sectionEntry('/terms/'), match: /^\/terms\// },
 ]
 
 // 取匹配到的最长前缀

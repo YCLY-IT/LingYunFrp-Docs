@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "LingYunFrp 使用文档站点：Vue 3 + Naive UI + Tailwind CSS v4 自研文档框架。",
+  "description": "LingYunFrp 使用文档站点：Vue 3 + Naive UI + Tailwind CSS v4 文档框架。",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

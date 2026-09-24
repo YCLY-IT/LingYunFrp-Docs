@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { fileToUrl } from '#shared/docs'
+import { sectionEntry, sidebars } from '@/config/site'
 
 const modules = import.meta.glob('/docs/**/*.md')
 
@@ -16,8 +17,13 @@ const docRoutes: RouteRecordRaw[] = Object.keys(modules).map((file) => {
   }
 })
 
+const sectionRedirects: RouteRecordRaw[] = sidebars
+  .filter((section) => !docRoutes.some((route) => route.path === section.prefix))
+  .map((section) => ({ path: section.prefix, redirect: sectionEntry(section.prefix) }))
+
 const routes: RouteRecordRaw[] = [
   ...docRoutes,
+  ...sectionRedirects,
   {
     path: '/develop/tags/:tag',
     name: 'api-tag',

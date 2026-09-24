@@ -16,7 +16,7 @@ LingYunFrp（凌云内网穿透）官方文档站点，使用 **Vue 3 + Naive UI
 | 亮 / 暗主题 | Naive UI `ConfigProvider` + Tailwind v4 `dark` 变体，跟随系统并可持久化 |
 | 代码块 | Shiki 双主题高亮、语言标签、一键复制、`{1,3-5}` 行高亮 |
 | 提示块 | `::: warning 标题` 语法映射到 Naive UI `Alert` |
-| OpenAPI | 自研渲染：按分组罗列接口、参数/请求体/响应字段树、cURL 与 fetch 示例 |
+| OpenAPI | 按分组罗列接口、参数/请求体/响应字段树、cURL 与 fetch 示例 |
 | 上下篇 | 按侧边栏顺序自动推导 |
 
 ## 快速开始
