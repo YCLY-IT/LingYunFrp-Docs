@@ -1,6 +1,6 @@
 # LingYunFrp Docs
 
-LingYunFrp（凌云内网穿透）官方文档站点，使用 **Vue 3 + Naive UI + Tailwind CSS v4** 自研文档框架，不依赖 VitePress 等现成文档生成器。
+LingYunFrp（凌云内网穿透）官方文档站点，使用 **Vue 3 + Naive UI + Tailwind CSS v4** 文档框架，现成文档生成器。
 
 > 免费、易用、安全、稳定、快速、极低占用。
 
