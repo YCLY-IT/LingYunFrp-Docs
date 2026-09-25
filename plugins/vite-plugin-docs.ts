@@ -115,7 +115,8 @@ export function docs(options: DocsPluginOptions = {}): Plugin {
     if (reusable) return cached
 
     const source = fs.readFileSync(file, 'utf-8')
-    const result = await renderMarkdown(source, { highlight })
+    const url = fileToUrl(`/${path.relative(root, file).split(path.sep).join('/')}`)
+    const result = await renderMarkdown(source, { highlight, pageUrl: url })
     const entry: CacheEntry = {
       mtimeMs: stat.mtimeMs,
       highlighted: highlight,

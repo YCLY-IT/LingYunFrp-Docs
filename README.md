@@ -15,6 +15,7 @@ LingYunFrp（凌云内网穿透）官方文档站点，使用 **Vue 3 + Naive UI
 | 全文检索 | 构建期生成索引（MiniSearch），支持中英文混合、键盘导航 |
 | 亮 / 暗主题 | Naive UI `ConfigProvider` + Tailwind v4 `dark` 变体，跟随系统并可持久化 |
 | 代码块 | Shiki 双主题高亮、语言标签、一键复制、`{1,3-5}` 行高亮 |
+| Mermaid 图表 | ` ```mermaid ` 代码块按需加载渲染，跟随亮 / 暗主题重绘，出错时回退显示源码 |
 | 提示块 | `::: warning 标题` 语法映射到 Naive UI `Alert` |
 | OpenAPI | 按分组罗列接口、参数/请求体/响应字段树、cURL 与 fetch 示例 |
 | 上下篇 | 按侧边栏顺序自动推导 |
@@ -108,6 +109,17 @@ serverAddr = "hz.example.com"
 
 - `title="..."` 自定义左上角标签
 - `{2,5-7}` 高亮指定行
+
+### Mermaid 图表
+
+````markdown
+```mermaid
+flowchart LR
+  A["本机服务"] --> B["公网节点"] --> C["访问者"]
+```
+````
+
+图表在浏览器端按需渲染（`mermaid` 独立分包，不进入首屏），切换亮 / 暗主题会重绘；语法出错时图表位置会回退显示错误信息与源码。
 
 ### 可在 Markdown 中直接使用的组件
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { normalizePath } from '#shared/docs'
 import { orderedPages } from '@/config/site'
 import { titleOf } from '@/docs/meta'
 import RevealOnScroll from './motion/RevealOnScroll.vue'
@@ -9,7 +10,9 @@ const route = useRoute()
 
 const neighbours = computed(() => {
   const list = orderedPages(route.path)
-  const index = list.indexOf(route.path)
+  // 直接打开链接时路由可能是带尾斜杠的索引页写法，比较前归一化
+  const current = normalizePath(route.path)
+  const index = list.findIndex((url) => normalizePath(url) === current)
   if (index === -1) return { prev: '', next: '' }
   return { prev: list[index - 1] ?? '', next: list[index + 1] ?? '' }
 })

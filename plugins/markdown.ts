@@ -4,6 +4,7 @@ import { codeToHtml } from 'shiki'
 import {
   escapeBraces,
   escapeHtml,
+  resolveDocLink,
   slugify,
   stripMarkdown,
   type DocHeading,
@@ -71,6 +72,11 @@ function parseFenceInfo(info: string) {
   return { lang, meta, title: title?.[1] ?? title?.[2] ?? '', lines }
 }
 
+// 文档里按仓库路径写 ../../public/image/a.png，而 public 就是站点根，构建后没有 /public 前缀
+function normalizeAssetUrl(src: string): string {
+  return src.replace(/^(?:\.\.\/)+public\//, '/').replace(/^\/public\//, '/')
+}
+
 function plainFence(content: string) {
   return `<pre class="shiki shiki-plain"><code>${escapeHtml(content)}</code></pre>`
 }
@@ -83,6 +89,9 @@ async function highlightFences(tokens: any[]): Promise<void> {
       .map(async (token) => {
         const { lang, title, lines } = parseFenceInfo(token.info)
         token.docFence = { lang, title }
+
+        // mermaid 交给前端组件渲染，这里不做高亮
+        if (lang === 'mermaid') return
 
         if (PLAIN_LANGS.has(lang)) {
           token.docFence.html = plainFence(token.content)
@@ -205,7 +214,10 @@ function headingsPlugin(md: MarkdownItInstance) {
       if (pendingInline) continue
 
       if (token.type === 'inline') current.text += ` ${token.content}`
-      else if (token.type === 'fence') current.text += ` ${token.content}`
+      // 图表源码进检索索引只会干扰命中，跳过
+      else if (token.type === 'fence' && parseFenceInfo(token.info).lang !== 'mermaid') {
+        current.text += ` ${token.content}`
+      }
     }
 
     flush()
@@ -227,12 +239,33 @@ function miscPlugin(md: MarkdownItInstance) {
     return true
   })
 
+  md.renderer.rules.image = (tokens: any[], index: number, _options: any, env: any) => {
+    const token = tokens[index]
+    const src = normalizeAssetUrl(resolveDocLink(token.attrGet('src') ?? '', String(env?.pageUrl ?? '')))
+    const alt = token.content ?? ''
+    const title = token.attrGet('title') ?? ''
+    const attr = (name: string, value: string) => ` ${name}="${escapeBraces(escapeHtml(value))}"`
+
+    // 被链接包住的图片点一下是要跳转，不接管点击
+    if (tokens[index - 1]?.type === 'link_open') {
+      return `<img${attr('src', src)}${alt ? attr('alt', alt) : ''}${title ? attr('title', title) : ''} loading="lazy" />`
+    }
+
+    return `<DocImage${attr('src', src)}${attr('alt', alt)}${title ? attr('title', title) : ''} />`
+  }
+
   md.renderer.rules.code_inline = (tokens: any[], index: number) =>
     `<code class="doc-inline-code">${escapeHtml(tokens[index].content)}</code>`
 
   md.renderer.rules.fence = (tokens: any[], index: number) => {
     const token = tokens[index]
     const fence = token.docFence ?? { lang: '', title: '', html: plainFence(token.content) }
+
+    // 图表源码走属性传递，转义后交给 DocMermaid（实体在模板编译期会被还原）
+    if (fence.lang === 'mermaid') {
+      return `<DocMermaid code="${escapeBraces(escapeHtml(token.content.trim()))}" />`
+    }
+
     const html = fence.html ?? plainFence(token.content)
     const label = fence.title || fence.lang || 'text'
 
@@ -250,8 +283,12 @@ function miscPlugin(md: MarkdownItInstance) {
     ].join('')
   }
 
-  md.renderer.rules.link_open = (tokens: any[], index: number, options: any, _env: any, self: any) => {
-    const href = tokens[index].attrGet('href') ?? ''
+  md.renderer.rules.link_open = (tokens: any[], index: number, options: any, env: any, self: any) => {
+    const raw = tokens[index].attrGet('href') ?? ''
+    // 相对链接按页面规范地址解析：浏览器会按当前 URL 解析，带不带尾斜杠结果不同
+    const href = resolveDocLink(raw, String(env?.pageUrl ?? ''))
+    if (href !== raw) tokens[index].attrSet('href', href)
+
     if (/^https?:\/\//i.test(href)) {
       tokens[index].attrSet('target', '_blank')
       tokens[index].attrSet('rel', 'noreferrer noopener')
@@ -286,11 +323,11 @@ const md = new MarkdownIt({
 
 export async function renderMarkdown(
   source: string,
-  options: { highlight?: boolean } = {},
+  options: { highlight?: boolean; pageUrl?: string } = {},
 ): Promise<RenderedMarkdown> {
-  const { highlight = true } = options
+  const { highlight = true, pageUrl = '' } = options
   const { data: frontmatter, body } = parseFrontmatter(source)
-  const env: Record<string, any> = {}
+  const env: Record<string, any> = { pageUrl }
   const tokens = md.parse(body, env)
 
   if (highlight) await highlightFences(tokens)

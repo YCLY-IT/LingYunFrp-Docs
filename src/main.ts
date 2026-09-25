@@ -4,6 +4,8 @@ import { router } from './router'
 import './styles/main.css'
 
 import DocAlert from '@/components/DocAlert.vue'
+import DocImage from '@/components/DocImage.vue'
+import DocMermaid from '@/components/DocMermaid.vue'
 import StatsPanel from '@/components/StatsPanel.vue'
 import ApiSpec from '@/components/api/ApiSpec.vue'
 import ApiOperation from '@/components/api/ApiOperation.vue'
@@ -12,6 +14,8 @@ const app = createApp(App)
 
 // markdown 里可以直接使用的组件
 app.component('DocAlert', DocAlert)
+app.component('DocImage', DocImage)
+app.component('DocMermaid', DocMermaid)
 app.component('Stats', StatsPanel)
 app.component('ApiSpec', ApiSpec)
 app.component('ApiOperation', ApiOperation)

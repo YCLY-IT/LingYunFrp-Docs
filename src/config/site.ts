@@ -55,18 +55,63 @@ export const sidebars: SidebarConfig[] = [
     prefix: '/docs/',
     groups: [
       {
-        text: '入门',
+        text: '概览',
+        items: [{ text: '文档中心', link: '/docs/' }],
+      },
+      {
+        text: '快速开始',
         items: [
-          { text: '了解指南', link: '/docs/' },
-          { text: '快速开始', link: '/docs/quick-start' },
+          { text: '概览', link: '/docs/quick-start' },
+          { text: '网页启动隧道', link: '/docs/quick-start/web-launch' },
+          { text: '客户端启动隧道', link: '/docs/quick-start/client-launch' },
+          { text: 'frpc 服务启动', link: '/docs/quick-start/service-launch' },
         ],
       },
       {
-        text: '配置参考',
+        text: '参数详解',
         items: [
-          { text: 'frpc 配置', link: '/docs/configuration#frpc-配置' },
-          { text: '隧道类型', link: '/docs/configuration#隧道类型' },
-          { text: '带宽单位换算', link: '/docs/configuration#带宽单位换算' },
+          { text: '概览', link: '/docs/parameters' },
+          { text: '配置文件说明', link: '/docs/parameters/config-file' },
+          { text: '服务端参数', link: '/docs/parameters/server-params' },
+          { text: '节点线路选型', link: '/docs/parameters/node-select' },
+          { text: '故障排查', link: '/docs/parameters/troubleshooting' },
+        ],
+      },
+      {
+        text: '使用场景',
+        items: [
+          { text: '场景概览', link: '/docs/scenarios' },
+          { text: '游戏开服 · 概览', link: '/docs/scenarios/game-server' },
+          { text: '面板工具使用', link: '/docs/scenarios/game-server/panel-tool' },
+          { text: 'frpc 部署示例', link: '/docs/scenarios/game-server/frpc-demo' },
+          { text: '游戏配置样例', link: '/docs/scenarios/game-server/game-example' },
+          { text: '远程连接与 NAS', link: '/docs/scenarios/game-server/other-usage' },
+          { text: '安全防护', link: '/docs/scenarios/game-server/security' },
+          { text: '部署网站 · 概览', link: '/docs/scenarios/website-deploy' },
+          { text: '建站工具对接', link: '/docs/scenarios/website-deploy/site-tool' },
+          { text: '域名解析', link: '/docs/scenarios/website-deploy/dns-resolve' },
+          { text: 'SSL 证书', link: '/docs/scenarios/website-deploy/ssl-cert' },
+        ],
+      },
+      {
+        text: '进阶使用',
+        items: [
+          { text: '概览', link: '/docs/advanced' },
+          { text: '开机自启', link: '/docs/advanced/auto-start' },
+          { text: '性能调优', link: '/docs/advanced/performance' },
+          { text: '日志查看', link: '/docs/advanced/log-view' },
+          { text: 'Docker 部署', link: '/docs/advanced/docker-deploy' },
+        ],
+      },
+      {
+        text: '常见问题',
+        items: [{ text: '全部问题', link: '/docs/faq' }],
+      },
+      {
+        text: '附录',
+        items: [
+          { text: '附录概览', link: '/docs/appendix' },
+          { text: '术语对照表', link: '/docs/appendix/glossary' },
         ],
       },
     ],

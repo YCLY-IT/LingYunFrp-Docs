@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { AnimatePresence, Motion } from 'motion-v'
+import { normalizePath } from '#shared/docs'
 import { resolveSidebar, type SidebarGroup } from '@/config/site'
 
 const emit = defineEmits<{ navigate: [] }>()
@@ -30,8 +31,21 @@ function groupKey(group: SidebarGroup) {
 }
 
 function hasActive(group: SidebarGroup) {
-  return group.items.some((item) => item.link.split('#')[0] === route.path)
+  const current = normalizePath(route.path)
+  return group.items.some((item) => normalizePath(item.link) === current)
 }
+
+// 同一页面既登记了页面级条目、又登记了锚点条目时（如 /develop/api 与 /develop/api#鉴权），
+// 命中锚点时只高亮锚点条目，避免两处同时点亮
+const anchoredPaths = computed(() => {
+  const paths = new Set<string>()
+  for (const group of groups.value) {
+    for (const item of group.items) {
+      if (item.link.includes('#')) paths.add(normalizePath(item.link))
+    }
+  }
+  return paths
+})
 
 function isOpen(group: SidebarGroup) {
   const saved = collapsed.value[groupKey(group)]
@@ -59,8 +73,13 @@ function safeDecode(value: string) {
 
 function isActive(link: string) {
   const [path, hash] = link.split('#')
-  if (path !== route.path) return false
-  if (!hash) return !route.hash
+  if (normalizePath(path) !== normalizePath(route.path)) return false
+
+  if (!hash) {
+    // 直接打开带锚点的链接时，页面级条目依然算当前页
+    return !route.hash || !anchoredPaths.value.has(normalizePath(path))
+  }
+
   return route.hash === `#${hash}` || safeDecode(route.hash.slice(1)) === hash
 }
 
