@@ -8,7 +8,8 @@ export interface SidebarLink {
 export interface SidebarGroup {
   text: string
   collapsed?: boolean
-  items: SidebarLink[]
+  items?: SidebarLink[]
+  children?: SidebarGroup[]
 }
 
 export interface SidebarConfig {
@@ -79,18 +80,40 @@ export const sidebars: SidebarConfig[] = [
       },
       {
         text: '使用场景',
-        items: [
-          { text: '场景概览', link: '/docs/scenarios' },
-          { text: '游戏开服 · 概览', link: '/docs/scenarios/game-server' },
-          { text: '面板工具使用', link: '/docs/scenarios/game-server/panel-tool' },
-          { text: 'frpc 部署示例', link: '/docs/scenarios/game-server/frpc-demo' },
-          { text: '游戏配置样例', link: '/docs/scenarios/game-server/game-example' },
-          { text: '远程连接与 NAS', link: '/docs/scenarios/game-server/other-usage' },
-          { text: '安全防护', link: '/docs/scenarios/game-server/security' },
-          { text: '部署网站 · 概览', link: '/docs/scenarios/website-deploy' },
-          { text: '建站工具对接', link: '/docs/scenarios/website-deploy/site-tool' },
-          { text: '域名解析', link: '/docs/scenarios/website-deploy/dns-resolve' },
-          { text: 'SSL 证书', link: '/docs/scenarios/website-deploy/ssl-cert' },
+        items: [{ text: '场景概览', link: '/docs/scenarios' }],
+        children: [
+          {
+            text: '游戏开服',
+            collapsed: true,
+            items: [
+              { text: '游戏开服 · 概览', link: '/docs/scenarios/game-server' },
+              { text: 'Minecraft 开服', link: '/docs/scenarios/game-server/mc' },
+              { text: 'Steam 游戏开服', link: '/docs/scenarios/game-server/steam-games' },
+              { text: 'Linux 可视化面板', link: '/docs/scenarios/game-server/panels' },
+            ],
+          },
+          {
+            text: '部署网站',
+            collapsed: true,
+            items: [
+              { text: '部署网站 · 概览', link: '/docs/scenarios/website-deploy' },
+              { text: '一键建站', link: '/docs/scenarios/website-deploy/one-click' },
+              { text: '手动建站', link: '/docs/scenarios/website-deploy/manual' },
+              { text: '域名解析', link: '/docs/scenarios/website-deploy/dns-resolve' },
+              { text: 'SSL 证书', link: '/docs/scenarios/website-deploy/ssl-cert' },
+              { text: '负载均衡', link: '/docs/scenarios/website-deploy/load-balance' },
+            ],
+          },
+          {
+            text: '内网端口映射',
+            collapsed: true,
+            items: [
+              { text: '内网端口映射 · 概览', link: '/docs/scenarios/lan-access' },
+              { text: '家庭 NAS', link: '/docs/scenarios/lan-access/nas' },
+              { text: '家庭数据库', link: '/docs/scenarios/lan-access/database' },
+              { text: '常用服务与远程管理', link: '/docs/scenarios/lan-access/services' },
+            ],
+          },
         ],
       },
       {
@@ -105,13 +128,11 @@ export const sidebars: SidebarConfig[] = [
       },
       {
         text: '常见问题',
-        items: [{ text: '全部问题', link: '/docs/faq' }],
-      },
-      {
-        text: '附录',
         items: [
-          { text: '附录概览', link: '/docs/appendix' },
-          { text: '术语对照表', link: '/docs/appendix/glossary' },
+          { text: '常见问题 · 概览', link: '/docs/faq' },
+          { text: '常见问题解答', link: '/docs/faq/common-questions' },
+          { text: '询问 AI 解决问题', link: '/docs/faq/ask-ai' },
+          { text: '寻求他人解决问题', link: '/docs/faq/ask-others' },
         ],
       },
     ],
@@ -154,8 +175,17 @@ export const sidebars: SidebarConfig[] = [
 
 export function sectionEntry(prefix: string): string {
   const section = sidebars.find((item) => item.prefix === prefix)
-  const link = section?.groups[0]?.items[0]?.link
+  const link = firstLink(section?.groups ?? [])
   return link ? link.split('#')[0] : prefix
+}
+
+function firstLink(groups: SidebarGroup[]): string | undefined {
+  for (const group of groups) {
+    if (group.items?.length) return group.items[0].link
+    const nested = firstLink(group.children ?? [])
+    if (nested) return nested
+  }
+  return undefined
 }
 
 export const nav: NavItem[] = [
@@ -179,12 +209,14 @@ export function orderedPages(path: string): string[] {
   const sidebar = resolveSidebar(path)
   if (!sidebar) return []
   const urls: string[] = []
-  for (const group of sidebar.groups) {
-    for (const item of group.items) {
+  const walk = (group: SidebarGroup) => {
+    for (const item of group.items ?? []) {
       const url = item.link.split('#')[0]
       if (!url || urls.includes(url)) continue
       urls.push(url)
     }
+    for (const child of group.children ?? []) walk(child)
   }
+  for (const group of sidebar.groups) walk(group)
   return urls
 }

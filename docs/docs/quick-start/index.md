@@ -189,4 +189,3 @@ sequenceDiagram
 
 - 第一次用：[网页启动隧道](./web-launch) → [客户端启动隧道](./client-launch)
 - 需要手写配置：[配置文件说明](../parameters/config-file)
-- 拿不准名词：[术语对照表](../appendix/glossary)

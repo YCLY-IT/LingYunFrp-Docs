@@ -172,7 +172,7 @@ bindPort = 25566                   # 访问方本地监听端口
 | `bindAddr` | 在你本机监听的地址，一般填 `127.0.0.1` |
 | `bindPort` | 在你本机监听的端口，之后用 `127.0.0.1:bindPort` 访问服务 |
 
-完整 stcp 双端示例见 [frpc 部署示例](../scenarios/game-server/frpc-demo)。
+完整 stcp 双端示例见 [Minecraft 开服 · 私密联机](../scenarios/game-server/mc)。
 
 ## frpc 配置（INI，v0.51.0 及更早的老版本）
 

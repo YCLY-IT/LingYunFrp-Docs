@@ -199,7 +199,7 @@ bindAddr = "127.0.0.1"
 bindPort = 25566                    # 之后访问 127.0.0.1:25566
 ```
 
-完整双端示例见 [frpc 部署示例](../scenarios/game-server/frpc-demo)。
+完整双端示例见 [Minecraft 开服 · 私密联机](../scenarios/game-server/mc)。
 
 ### xtcp：P2P 点对点打洞
 
@@ -266,6 +266,6 @@ flowchart TB
 相关阅读：
 
 - http / https 的域名解析与证书：[部署网站](../scenarios/website-deploy/)
-- stcp / xtcp 实战：[frpc 部署示例](../scenarios/game-server/frpc-demo)
+- stcp / xtcp 实战：[Minecraft 开服](../scenarios/game-server/mc)
 - 参数写到配置文件里长什么样：[配置文件说明](./config-file)
 - 注册失败、端口连不通：[故障排查](./troubleshooting)
